@@ -15,11 +15,11 @@ defmodule Daemon.Op do
     defstruct [:name, :ty]
   end
 
-  # chain ops
-
   defmodule Label do
     defstruct [:label, :body]
   end
+
+  # chain ops
 
   defmodule Then do
     defstruct [:first, :second, :keep]

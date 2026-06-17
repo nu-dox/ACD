@@ -4,22 +4,38 @@ defmodule Daemon.LLM.Anthropic do
 
   @impl true
   def complete(plan, messages) do
+    case System.get_env("ANTHROPIC_API_KEY") do
+      nil ->
+        Logger.error("ANTHROPIC_API_KEY is not set")
+        {:error, :missing_api_key}
+
+      "" ->
+        Logger.error("ANTHROPIC_API_KEY is empty")
+        {:error, :missing_api_key}
+
+      api_key ->
+        do_complete(api_key, plan, messages)
+    end
+  end
+
+  defp do_complete(api_key, plan, messages) do
     tools = Enum.map(plan.tools, &Daemon.Tool.definition/1)
 
-    body = %{
-      model: plan.model || "claude-opus-4-7",
+    base = %{
+      model: plan.model || "claude-sonnet-4-6",
       max_tokens: 8096,
       system: plan.system,
-      tools: tools,
       messages: format_messages(messages)
     }
 
+    body = if tools == [], do: base, else: Map.put(base, :tools, tools)
+
     case Req.post("https://api.anthropic.com/v1/messages",
            json: body,
+           finch: Daemon.Finch,
            headers: [
-             {"x-api-key", System.get_env("ANTHROPIC_API_KEY")},
-             {"anthropic-version", "2023-06-01"},
-             {"content-type", "application/json"}
+             {"x-api-key", api_key},
+             {"anthropic-version", "2023-06-01"}
            ]
          ) do
       {:ok, %{status: 200, body: body}} ->
