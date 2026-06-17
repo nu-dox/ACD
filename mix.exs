@@ -27,6 +27,7 @@ defmodule Daemon.MixProject do
       {:plug, "~> 1.16"},
       # HTTP client (llm calls)
       {:req, "~> 0.5"},
+      {:castore, "~> 1.0"},
       # JSON
       {:jason, "~> 1.4"},
       # event fan-out for SSE

@@ -1,8 +1,11 @@
 defmodule Daemon.Tool do
   require Logger
 
-  @response_truncate_chars 4000
+  # @response_truncate_chars 4000
+  # messing around with this number
+  @response_truncate_chars 10_000
 
+  # --- tool execution ---
   @spec execute(String.t(), map() | list()) :: {:ok, String.t()} | {:error, any()}
 
   # http_get — called from LLM agent loop (args is a map)
@@ -23,8 +26,8 @@ defmodule Daemon.Tool do
     {:ok, "tool result for #{name}"}
   end
 
-  # --- tool schemas ---
-
+  # --- tool schemas/definitions ---
+  # network
   def definition("search") do
     %{
       name: "search",
@@ -39,6 +42,21 @@ defmodule Daemon.Tool do
     }
   end
 
+  def definition("http_get") do
+    %{
+      name: "http_get",
+      description: "Make an HTTP GET request to a URL and return the response body.",
+      input_schema: %{
+        type: "object",
+        properties: %{
+          url: %{type: "string", description: "The URL to fetch"}
+        },
+        required: ["url"]
+      }
+    }
+  end
+
+  # client 
   def definition("read") do
     %{
       name: "read",
@@ -68,38 +86,83 @@ defmodule Daemon.Tool do
     }
   end
 
-  def definition("http_get") do
+  def definition("list") do
     %{
-      name: "http_get",
-      description: "Make an HTTP GET request to a URL and return the response body.",
+      name: "list",
+      description: "List the contents of a directory on the registered machine.",
       input_schema: %{
         type: "object",
         properties: %{
-          url: %{type: "string", description: "The URL to fetch"}
+          path: %{type: "string", description: "Directory path to list"}
         },
-        required: ["url"]
+        required: ["path"]
       }
     }
   end
 
-  def definition(name) do
+  def definition("grep") do
     %{
-      name: name,
-      description: "Executes the #{name} tool.",
+      name: "grep",
+      description: "Search for a pattern within files on the registered machine.",
       input_schema: %{
         type: "object",
         properties: %{
-          input: %{type: "string", description: "Input for the #{name} tool"}
+          pattern: %{type: "string", description: "The pattern to search for"},
+          path: %{type: "string", description: "File or directory to search in"}
         },
-        required: ["input"]
+        required: ["pattern", "path"]
+      }
+    }
+  end
+
+  def definition("shell") do
+    %{
+      name: "shell",
+      description: "Run a shell command on the registered machine and return stdout.",
+      input_schema: %{
+        type: "object",
+        properties: %{
+          command: %{type: "string", description: "The shell command to run"}
+        },
+        required: ["command"]
+      }
+    }
+  end
+
+  # context/memory
+  def definition("memory_read") do
+    %{
+      name: "memory_read",
+      description: "Read a value from persistent agent memory by key.",
+      input_schema: %{
+        type: "object",
+        properties: %{
+          key: %{type: "string", description: "The memory key to read"}
+        },
+        required: ["key"]
+      }
+    }
+  end
+
+  def definition("memory_write") do
+    %{
+      name: "memory_write",
+      description: "Write a value to persistent agent memory.",
+      input_schema: %{
+        type: "object",
+        properties: %{
+          key: %{type: "string", description: "The memory key to write"},
+          value: %{type: "string", description: "The value to store"}
+        },
+        required: ["key", "value"]
       }
     }
   end
 
   # --- private ---
-
+  # actual implementation for tools
   defp http_get(url) do
-    case Req.get(url) do
+    case Req.get(url, finch: Daemon.Finch) do
       {:ok, %{status: 200, body: body}} ->
         text = if is_binary(body), do: body, else: Jason.encode!(body)
         {:ok, String.slice(text, 0, @response_truncate_chars)}

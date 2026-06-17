@@ -69,7 +69,9 @@ defmodule Daemon.Session do
       Logger.info("session=#{state.id} resuming interrupt_id=#{interrupt_id}")
       send(state.run_task_pid, {:intervention_reply, interrupt_id, reply})
     else
-      Logger.warning("session=#{state.id} resume received but no task running interrupt_id=#{interrupt_id}")
+      Logger.warning(
+        "session=#{state.id} resume received but no task running interrupt_id=#{interrupt_id}"
+      )
     end
 
     {:noreply, state}

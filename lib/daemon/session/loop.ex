@@ -13,8 +13,8 @@ defmodule Daemon.Session.Loop do
     Logger.info("session=#{session_id} op tree complete result=#{inspect(result)}")
 
     llm_plan = %{
-      provider: :openai,
-      model: "gpt-4o",
+      provider: :anthropic,
+      model: "claude-sonnet-4-6",
       system: system,
       tools: plan.tools
     }
@@ -26,13 +26,22 @@ defmodule Daemon.Session.Loop do
   @max_iterations 20
 
   defp agent_loop(session_id, _plan, _messages, iterations) when iterations >= @max_iterations do
-    Logger.error("session=#{session_id} agent loop hit max iterations (#{@max_iterations}), forcing stop")
-    broadcast(session_id, %{type: :finished, content: "Agent stopped: exceeded #{@max_iterations} iterations"})
+    Logger.error(
+      "session=#{session_id} agent loop hit max iterations (#{@max_iterations}), forcing stop"
+    )
+
+    broadcast(session_id, %{
+      type: :finished,
+      content: "Agent stopped: exceeded #{@max_iterations} iterations"
+    })
+
     {:error, :max_iterations}
   end
 
   defp agent_loop(session_id, plan, messages, iterations) do
-    Logger.info("session=#{session_id} calling LLM provider=#{plan.provider} model=#{plan.model} messages=#{length(messages)} iteration=#{iterations + 1}/#{@max_iterations}")
+    Logger.info(
+      "session=#{session_id} calling LLM provider=#{plan.provider} model=#{plan.model} messages=#{length(messages)} iteration=#{iterations + 1}/#{@max_iterations}"
+    )
 
     case Daemon.LLM.Client.complete(plan, messages) do
       {:ok, %{finish_reason: :end_turn, content: content}} ->
@@ -41,7 +50,9 @@ defmodule Daemon.Session.Loop do
         {:ok, messages ++ [%{role: :assistant, content: content}]}
 
       {:ok, %{finish_reason: :tool_calls, content: content, tool_calls: tool_calls}} ->
-        Logger.info("session=#{session_id} LLM tool_calls count=#{length(tool_calls)} tools=#{Enum.map_join(tool_calls, ", ", & &1.name)}")
+        Logger.info(
+          "session=#{session_id} LLM tool_calls count=#{length(tool_calls)} tools=#{Enum.map_join(tool_calls, ", ", & &1.name)}"
+        )
 
         tool_results =
           Enum.map(tool_calls, fn call ->
