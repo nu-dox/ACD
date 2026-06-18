@@ -12,6 +12,13 @@ defmodule Daemon.Session.Loop do
     {result, _final_state} = Executor.exec(program.body, state)
     Logger.info("session=#{session_id} op tree complete result=#{inspect(result)}")
 
+    # llm_plan = %{
+    #  provider: :openai,
+    #  model: "gpt-4o",
+    #  system: system,
+    #  tools: plan.tools
+    # }
+
     llm_plan = %{
       provider: :anthropic,
       model: "claude-sonnet-4-6",
