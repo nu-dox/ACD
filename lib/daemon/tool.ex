@@ -8,19 +8,37 @@ defmodule Daemon.Tool do
   # --- tool execution ---
   @spec execute(String.t(), map() | list()) :: {:ok, String.t()} | {:error, any()}
 
-  # http_get — called from LLM agent loop (args is a map)
   def execute("http_get", %{"url" => url}) do
     Logger.info("tool=http_get url=#{url}")
     http_get(url)
   end
 
-  # http_get — called from op tree executor (args is a positional list)
   def execute("http_get", [url | _]) when is_binary(url) do
     Logger.info("tool=http_get url=#{url}")
     http_get(url)
   end
 
-  # fallback stub for all other tools
+  def execute("read", %{"path" => path}) do
+    Logger.info("tool=read path=#{path}")
+    read_file(path)
+  end
+
+  def execute("read", [path | _]) when is_binary(path) do
+    Logger.info("tool=read path=#{path}")
+    read_file(path)
+  end
+
+  def execute("write", %{"path" => path, "content" => content}) do
+    Logger.info("tool=write path=#{path}")
+    write_file(path, content)
+  end
+
+  def execute("write", [path, content | _]) when is_binary(path) and is_binary(content) do
+    Logger.info("tool=write path=#{path}")
+    write_file(path, content)
+  end
+
+  # fallback (stubbed)
   def execute(name, args) do
     Logger.info("tool=#{name} args=#{inspect(args)} (stubbed)")
     {:ok, "tool result for #{name}"}
@@ -160,7 +178,28 @@ defmodule Daemon.Tool do
   end
 
   # --- private ---
-  # actual implementation for tools
+
+  defp read_file(path) do
+    case File.read(path) do
+      {:ok, content} ->
+        {:ok, String.slice(content, 0, @response_truncate_chars)}
+
+      {:error, reason} ->
+        {:error, "read #{path}: #{:file.format_error(reason)}"}
+    end
+  end
+
+  defp write_file(path, content) do
+    dir = Path.dirname(path)
+
+    with :ok <- File.mkdir_p(dir),
+         :ok <- File.write(path, content) do
+      {:ok, "wrote #{path}"}
+    else
+      {:error, reason} -> {:error, "write #{path}: #{:file.format_error(reason)}"}
+    end
+  end
+
   defp http_get(url) do
     case Req.get(url, finch: Daemon.Finch) do
       {:ok, %{status: 200, body: body}} ->
