@@ -179,6 +179,7 @@ defmodule Daemon.Tool do
 
   # --- private ---
 
+  # client
   defp read_file(path) do
     case File.read(path) do
       {:ok, content} ->
@@ -200,6 +201,7 @@ defmodule Daemon.Tool do
     end
   end
 
+  # network
   defp http_get(url) do
     case Req.get(url, finch: Daemon.Finch) do
       {:ok, %{status: 200, body: body}} ->
@@ -215,4 +217,6 @@ defmodule Daemon.Tool do
         {:error, inspect(reason)}
     end
   end
+
+  # memory/context
 end
