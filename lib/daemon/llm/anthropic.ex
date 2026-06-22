@@ -4,17 +4,12 @@ defmodule Daemon.LLM.Anthropic do
 
   @impl true
   def complete(plan, messages) do
-    case System.get_env("ANTHROPIC_API_KEY") do
-      nil ->
-        Logger.error("ANTHROPIC_API_KEY is not set")
-        {:error, :missing_api_key}
+    api_key = get_in(plan, [:api_keys, "anthropic"]) || System.get_env("ANTHROPIC_API_KEY")
 
-      "" ->
-        Logger.error("ANTHROPIC_API_KEY is empty")
-        {:error, :missing_api_key}
-
-      api_key ->
-        do_complete(api_key, plan, messages)
+    case api_key do
+      nil -> Logger.error("ANTHROPIC_API_KEY not set"); {:error, :missing_api_key}
+      "" -> Logger.error("ANTHROPIC_API_KEY empty"); {:error, :missing_api_key}
+      key -> do_complete(key, plan, messages)
     end
   end
 
@@ -33,6 +28,7 @@ defmodule Daemon.LLM.Anthropic do
     case Req.post("https://api.anthropic.com/v1/messages",
            json: body,
            finch: Daemon.Finch,
+           receive_timeout: 120_000,
            headers: [
              {"x-api-key", api_key},
              {"anthropic-version", "2023-06-01"}

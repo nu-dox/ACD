@@ -4,18 +4,31 @@ defmodule Daemon.LLM.OpenAI do
 
   @impl true
   def complete(plan, messages) do
+    api_key = get_in(plan, [:api_keys, "openai"]) || System.get_env("OPENAI_API_KEY")
+
+    case api_key do
+      nil -> Logger.error("OPENAI_API_KEY not set"); {:error, :missing_api_key}
+      "" -> Logger.error("OPENAI_API_KEY empty"); {:error, :missing_api_key}
+      key -> do_complete(key, plan, messages)
+    end
+  end
+
+  defp do_complete(api_key, plan, messages) do
     tools = Enum.map(plan.tools, &tool_definition/1)
 
-    body = %{
+    base = %{
       model: plan.model || "gpt-4o",
-      messages: format_messages(messages),
-      tools: tools
+      messages: format_messages(messages)
     }
+
+    body = if tools == [], do: base, else: Map.put(base, :tools, tools)
 
     case Req.post("https://api.openai.com/v1/chat/completions",
            json: body,
+           finch: Daemon.Finch,
+           receive_timeout: 120_000,
            headers: [
-             {"authorization", "Bearer #{System.get_env("OPENAI_API_KEY")}"},
+             {"authorization", "Bearer #{api_key}"},
              {"content-type", "application/json"}
            ]
          ) do
