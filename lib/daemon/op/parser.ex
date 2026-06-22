@@ -19,7 +19,8 @@ defmodule Daemon.Op.Parser do
   defp parse_personality(raw) do
     %Op.Personality{
       starter_prompt: raw["starter_prompt"],
-      tools: raw["tools"] || []
+      tools: raw["tools"] || [],
+      use_llm: Map.get(raw, "use_llm", true)
     }
   end
 

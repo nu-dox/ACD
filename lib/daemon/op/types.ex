@@ -8,7 +8,7 @@ defmodule Daemon.Op do
   end
 
   defmodule Personality do
-    defstruct [:starter_prompt, tools: []]
+    defstruct [:starter_prompt, tools: [], use_llm: true]
   end
 
   defmodule Slot do
