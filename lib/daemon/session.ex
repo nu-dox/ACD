@@ -10,8 +10,8 @@ defmodule Daemon.Session do
     GenServer.start_link(__MODULE__, opts, name: via(opts.id))
   end
 
-  def run(session_id, program, message) do
-    GenServer.call(via(session_id), {:run, program, message}, :infinity)
+  def run(session_id, program, message, api_keys \\ %{}) do
+    GenServer.call(via(session_id), {:run, program, message, api_keys}, :infinity)
   end
 
   def resume(session_id, interrupt_id, reply) do
@@ -29,17 +29,17 @@ defmodule Daemon.Session do
     {:ok, struct(__MODULE__, opts)}
   end
 
-  def handle_call({:run, _, _}, _from, %{status: :busy} = state) do
+  def handle_call({:run, _, _, _}, _from, %{status: :busy} = state) do
     Logger.warning("session=#{state.id} run rejected — already busy")
     {:reply, {:error, :busy}, state}
   end
 
-  def handle_call({:run, program, message}, _from, state) do
+  def handle_call({:run, program, message, api_keys}, _from, state) do
     Logger.info("session=#{state.id} run starting")
 
     task =
       Task.async(fn ->
-        Daemon.Session.Loop.run(state.id, program, state.messages, message)
+        Daemon.Session.Loop.run(state.id, program, state.messages, message, api_keys)
       end)
 
     {:reply, :ok, %{state | status: :busy, run_task_pid: task.pid}}

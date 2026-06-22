@@ -2,22 +2,48 @@ defmodule Daemon.Session.Loop do
   alias Daemon.Session.Executor, as: Executor
   require Logger
 
-  def run(session_id, program, history, _user_message) do
+  def run(session_id, program, history, _user_message, api_keys \\ %{}) do
     plan = Daemon.Op.Interpreter.build(program)
     personality = program.manifest.personality
 
-    state = %{session_id: session_id, slots: plan.slots}
+    state = %{
+      session_id: session_id,
+      slots: plan.slots,
+      context_messages: [],
+      params: %{},
+      checkpoints: %{},
+      routines: plan.routines,
+      personality: nil,
+      allowed_tools: nil,
+      strategy: nil
+    }
 
     Logger.info("session=#{session_id} executing op tree")
-    {result, _final_state} = Executor.exec(program.body, state)
+    {result, final_state} = Executor.exec(program.body, state)
     Logger.info("session=#{session_id} op tree complete result=#{inspect(result)}")
 
     if personality.use_llm do
+      effective_personality = final_state.personality || personality
+
+      context = Enum.join(final_state.context_messages, "\n\n")
+
+      system =
+        [effective_personality.starter_prompt, context]
+        |> Enum.reject(&(is_nil(&1) or &1 == ""))
+        |> Enum.join("\n\n---\n")
+
+      tools =
+        case final_state.allowed_tools do
+          nil -> plan.tools
+          allowed -> Enum.filter(plan.tools, &(&1 in allowed))
+        end
+
       llm_plan = %{
-        provider: :anthropic,
-        model: "claude-sonnet-4-6",
-        system: personality.starter_prompt,
-        tools: plan.tools
+        provider: effective_personality.provider || :anthropic,
+        model: effective_personality.model || "claude-sonnet-4-6",
+        system: system,
+        tools: tools,
+        api_keys: api_keys
       }
 
       messages = history ++ [%{role: :user, content: to_string(result)}]
