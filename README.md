@@ -25,9 +25,7 @@ The client runs nothing itself. All agent logic, LLM calls, and tool execution l
 
 ## Client libraries
 
-Client harness libraries are in active development. These will be the primary way to build on top of ACD — they handle program construction, SSE parsing, interrupt handling, and session management for you.
-
-**We are not accepting contributions at this time.** Once client libraries are available and the op set stabilises, we will open the project up.
+Client harness libraries are in active development. These will be the primary way to build coding agent harnesses on top of ACD.
 
 ---
 
