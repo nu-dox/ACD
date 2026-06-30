@@ -14,7 +14,13 @@ defmodule Daemon.HTTP.Router do
     with {:ok, raw_program} <- fetch_field(conn.body_params, "program"),
          {:ok, program} <- parse_program(raw_program),
          :ok <- ensure_session(id),
-         :ok <- Daemon.Session.run(id, program, Map.get(conn.body_params, "message", ""), Map.get(conn.body_params, "api_keys", %{})) do
+         :ok <-
+           Daemon.Session.run(
+             id,
+             program,
+             Map.get(conn.body_params, "message", ""),
+             Map.get(conn.body_params, "api_keys", %{})
+           ) do
       Logger.info("session=#{id} run started")
       send_resp(conn, 200, Jason.encode!(%{status: "ok"}))
     else

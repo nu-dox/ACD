@@ -74,7 +74,9 @@ defmodule Daemon.Session.Loop do
       "session=#{session_id} calling LLM provider=#{plan.provider} model=#{plan.model} messages=#{length(messages)} iteration=#{iterations + 1}/#{@max_iterations}"
     )
 
-    case Daemon.LLM.Client.complete(plan, messages) do
+    on_chunk = fn chunk -> broadcast(session_id, %{type: :text_delta, content: chunk}) end
+
+    case Daemon.LLM.Client.stream(plan, messages, on_chunk) do
       {:ok, %{finish_reason: :end_turn, content: content}} ->
         Logger.info("session=#{session_id} LLM end_turn content_length=#{String.length(content)}")
         broadcast(session_id, %{type: :finished, content: content})
